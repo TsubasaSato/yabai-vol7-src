@@ -1,34 +1,41 @@
 use crate::interface::*;
 use std::collections::HashMap;
 
+
 // ベクトル演算を行う関数群
 #[inline]
 fn add_assign_vec(lhs: &mut Vec<f64>, rhs: &Vec<f64>) {
+    // lhs の各要素に rhs の各要素を加算
     lhs.iter_mut().zip(rhs).for_each(|(l, r)| *l += *r);
 }
 
 #[inline]
 fn sub_assign_vec(lhs: &mut Vec<f64>, rhs: &Vec<f64>) {
+    // lhs の各要素から rhs の各要素を減算
     lhs.iter_mut().zip(rhs).for_each(|(l, r)| *l -= *r);
 }
 
 #[inline]
 fn mul_vec(lhs: &Vec<f64>, rhs: &Vec<f64>) -> Vec<f64> {
+    // lhs と rhs の要素ごとの積を計算し、新しいベクトルとして返す
     lhs.iter().zip(rhs).map(|(l, r)| l * r).collect()
 }
 
 #[inline]
 fn mul_assign_scalar(vec: &mut Vec<f64>, scalar: f64) {
+    // ベクトルの各要素をスカラー値で乗算
     vec.iter_mut().for_each(|el| *el *= scalar);
 }
 
 #[inline]
 fn mul_assign_vec(lhs: &mut Vec<f64>, rhs: &Vec<f64>) {
+    // lhs の各要素を rhs の各要素と乗算
     lhs.iter_mut().zip(rhs).for_each(|(l, r)| *l *= *r);
 }
 
 #[inline]
 fn div_assign_vec(lhs: &mut Vec<f64>, rhs: &Vec<f64>, default: f64) {
+    // lhs の各要素を rhs の各要素で割る。ただし、rhs の要素が 0.0 の場合は default を適用
     lhs.iter_mut().zip(rhs).for_each(|(l, r)| {
         *l = if *r == 0.0 { default } else { *l / *r };
     });
@@ -36,8 +43,10 @@ fn div_assign_vec(lhs: &mut Vec<f64>, rhs: &Vec<f64>, default: f64) {
 
 #[inline]
 fn nonneg_assign_vec(vec: &mut Vec<f64>) {
+    // 各要素を非負（0以上）にする
     vec.iter_mut().for_each(|el| *el = el.max(0.0));
 }
+
 
 /// CFRアルゴリズムを管理する構造体
 pub struct CFRMinimizer<'a, T: Game> {
@@ -87,6 +96,9 @@ impl<'a, T: 'a + Game> CFRMinimizer<'a, T> {
         Self::build_tree(&root, &mut self.cum_strategy);
 
         // 到達確率を1で初期化
+        // pmiは偶然手番による寄与が含まれない
+        // すなわち、ハンドの組み合わせ確率がこの時点では考慮されない。
+        // evaluateメソッド内で偶然手番による寄与を反映する。
         let ones = vec![1.0; T::num_private_hands()];
 
         // 自己対戦を繰り返す
@@ -134,8 +146,10 @@ impl<'a, T: 'a + Game> CFRMinimizer<'a, T> {
             // 各アクションに対する counterfactual value を計算する
             for action in node.actions() {
                 let pi = mul_vec(&pi, &strategy[action]);
-                let mut cfvalue_action = self.cfr_recursive(&node.play(action), player, &pi, pmi);
+                // アクションにおけるcfv（利得*到達確率）
+                let mut cfvalue_action:Vec<f64>= self.cfr_recursive(&node.play(action), player, &pi, pmi);
                 cfvalue_action_vec.push(cfvalue_action.clone());
+                // アクションにおけるcfv（利得*到達確率）* アクションの各ハンドにおける最適戦略確率
                 mul_assign_vec(&mut cfvalue_action, &strategy[action]);
                 add_assign_vec(&mut cfvalue, &cfvalue_action);
             }
@@ -155,9 +169,14 @@ impl<'a, T: 'a + Game> CFRMinimizer<'a, T> {
                     }
                 });
 
+                // DCRFにおける、T+1回目のri(I,a)=vi(σI→a, h)-vi(σ, h)をリグレットの累積値に加算する
+                  // cfvalue_action_vec[action]：アクションにおけるcfv（利得*到達確率）
                 add_assign_vec(cum_regret, &cfvalue_action_vec[action]);
+                  // cfvalue：各アクションにおけるcfv（利得*到達確率）* 各アクションの最適戦略確率　における全アクションの和
                 sub_assign_vec(cum_regret, &cfvalue);
 
+                //DCFRにおける、ナッシュ均衡に収束するためのCF到達確率で重みづけたTまでの戦略の和
+                //※まだ平均戦略ではないことに注意(compute_average_strategyメソッドでTまでのCF到達確率の和で割り算する)
                 mul_assign_scalar(&mut strategy[action], self.gamma_t);
                 mul_assign_vec(&mut strategy[action], &pi);
                 add_assign_vec(cum_strategy, &strategy[action]);
@@ -213,16 +232,23 @@ impl<'a, T: 'a + Game> CFRMinimizer<'a, T> {
     }
 
     /// フィールド `cum_strategy` を参照して平均戦略を返す
+    /// この時点では`cum_strategy`はナッシュ均衡に収束するためのCF到達確率で重みづけたTまでの戦略の和(P23の分子)
+    /// 
+    /// 平均戦略はとあるノードにおけるアクションをそのノードで選択できる全アクションの戦略で割った割合
+    /// とあるノードでベットとコールの２アクションが可能であれば、ベットの戦略/ベットとコール　が平均戦略
     fn compute_average_strategy(&self) -> HashMap<PublicHistory, Vec<Vec<f64>>> {
         let num_private_hands = T::num_private_hands();
-        let mut average_strategy = self.cum_strategy.clone();
+        let mut average_strategy: HashMap<PublicHistory, Vec<Vec<f64>>> = self.cum_strategy.clone();
 
+        // 全ノードにおける戦略を確認している
         for strategy in average_strategy.values_mut() {
             let mut denom = vec![0.0; num_private_hands];
+            // とあるノードにおける戦略の合計を作成する（例：ベット、コールの２アクションが可能なノード）
             strategy.iter().for_each(|strategy_action| {
                 add_assign_vec(&mut denom, &strategy_action);
             });
 
+            // とあるノードにおいてアクション/アクションの戦略和　を計算して、average_strategyを更新
             strategy.iter_mut().for_each(|strategy_action| {
                 div_assign_vec(strategy_action, &denom, 0.0);
             });

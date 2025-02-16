@@ -12,11 +12,14 @@ fn main() {
     let kuhn_game = KuhnGame::new();
     let mut cfr = CFRMinimizer::new(&kuhn_game);
     let strategy = cfr.compute(num_iterations);
+
     let ev = compute_ev(&kuhn_game, 0, &strategy);
     let exploitability = compute_exploitability(&kuhn_game, &strategy);
 
     println!();
     println!("[Kuhn Poker]");
+
+    
     println!("- Exploitability: {:+.3e}", exploitability);
 
     println!();

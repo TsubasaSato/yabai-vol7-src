@@ -2,6 +2,8 @@ use holdem_hand_evaluator::{heads_up_win_frequency, Hand};
 use rayon::prelude::*;
 use std::{fs::File, io::Write};
 
+
+// プリフロップにおける勝率テーブルを生成するプログラムです。
 fn main() -> std::io::Result<()> {
     let empty = Hand::new();
 

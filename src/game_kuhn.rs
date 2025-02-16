@@ -34,6 +34,10 @@ impl Game for KuhnGame {
                 if my_card == opp_card {
                     continue;
                 }
+                // pmiは偶然手番による寄与が含まれない
+                // すなわち、ハンドの組み合わせ確率が考慮されていない。
+                // evaluateメソッド内で考慮してあげる必要があり、Kuhnゲームでは６通りの組み合わせのため、
+                // pmi[opp_card] を 6.0で割っている
                 cfvalue[my_card] +=
                     Self::payoff(node, player, my_card, opp_card) * pmi[opp_card] / 6.0;
             }
@@ -52,10 +56,13 @@ impl KuhnGame {
     #[inline]
     fn payoff(node: &KuhnNode, player: usize, my_card: usize, opp_card: usize) -> f64 {
         match (node.public_history.as_slice(), node.public_history.last()) {
+            // 利得が1の時、お互いにチェック
             ([CHECK_FOLD, CHECK_FOLD], _) if my_card > opp_card => 1.0,
             ([CHECK_FOLD, CHECK_FOLD], _) => -1.0,
+            // 利得が1の時、どちらかがベットして、片方が降りた時
             (_, Some(&CHECK_FOLD)) if node.current_player() == player => 1.0,
             (_, Some(&CHECK_FOLD)) => -1.0,
+            // 利得が2の時、ベットにコールしてショーダウン
             _ if my_card > opp_card => 2.0,
             _ => -2.0,
         }

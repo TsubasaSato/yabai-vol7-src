@@ -31,17 +31,6 @@ pub fn compute_ev<T: Game>(
     compute_ev_rec(game, &T::root(), player, &ones, &ones, strategy)
 }
 
-/// 戦略の組 `strategy` の可搾取量を返す
-pub fn compute_exploitability<T: Game>(
-    game: &T,
-    strategy: &HashMap<PublicHistory, Vec<Vec<f64>>>,
-) -> f64 {
-    let ones = vec![1.0; T::num_private_hands()];
-    let br0 = best_cfvalues_rec(game, &T::root(), 0, &ones, strategy);
-    let br1 = best_cfvalues_rec(game, &T::root(), 1, &ones, strategy);
-    br0.iter().sum::<f64>() + br1.iter().sum::<f64>()
-}
-
 /// 利得の期待値を再帰的に計算するヘルパー
 fn compute_ev_rec<T: Game>(
     game: &T,
@@ -71,6 +60,17 @@ fn compute_ev_rec<T: Game>(
             })
             .sum()
     }
+}
+
+/// 戦略の組 `strategy` の可搾取量を返す
+pub fn compute_exploitability<T: Game>(
+    game: &T,
+    strategy: &HashMap<PublicHistory, Vec<Vec<f64>>>,
+) -> f64 {
+    let ones = vec![1.0; T::num_private_hands()];
+    let br0 = best_cfvalues_rec(game, &T::root(), 0, &ones, strategy);
+    let br1 = best_cfvalues_rec(game, &T::root(), 1, &ones, strategy);
+    br0.iter().sum::<f64>() + br1.iter().sum::<f64>()
 }
 
 /// 最適応答戦略の counterfactual value を再帰的に計算するヘルパー
