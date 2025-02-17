@@ -102,3 +102,15 @@ fn best_cfvalues_rec<T: Game>(
     }
     .unwrap()
 }
+
+/// 計算量を算出する
+pub fn compute_complexity(num_private_hands: i32, num_terminal_nodes: i32, exploitability: f64) -> f64 {
+    if exploitability == 0.0 {
+        panic!("Exploitability must be greater than zero to avoid division by zero.");
+    }
+
+    let base = num_private_hands as f64;
+    let exponent = num_terminal_nodes as f64;
+
+    base.powf(exponent) / (exploitability * exploitability)
+}
