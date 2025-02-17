@@ -69,7 +69,7 @@ pub struct CFRMinimizer<'a, T: Game> {
     gamma_t: f64,
 
     /// 終端ノード数
-    // terminal_nodes : i32,
+    terminal_nodes : i32,
 }
 
 impl<'a, T: 'a + Game> CFRMinimizer<'a, T> {
@@ -86,7 +86,7 @@ impl<'a, T: 'a + Game> CFRMinimizer<'a, T> {
             alpha_t: 1.0,
             beta_t: 1.0,
             gamma_t: 1.0,
-            // terminal_nodes: 0
+            terminal_nodes: 0
         }
     }
 
@@ -95,7 +95,7 @@ impl<'a, T: 'a + Game> CFRMinimizer<'a, T> {
         // ゲームの初期履歴を取得
         let root = T::root();
 
-        Self::build_tree(&root, &mut self.cum_regret);
+        Self::build_tree_and_terminal_count(&root, &mut self.cum_regret, &mut self.terminal_nodes);
         Self::build_tree(&root, &mut self.cum_strategy);
         
         // 到達確率を1で初期化
@@ -215,6 +215,24 @@ impl<'a, T: 'a + Game> CFRMinimizer<'a, T> {
         }
     }
 
+    /// ゲーム木を構築しながら、終端ノード数もカウントする
+    fn build_tree_and_terminal_count(node: &T::Node, tree: &mut HashMap<PublicHistory, Vec<Vec<f64>>>, terminal_nodes: &mut i32) {
+        if node.is_terminal() {
+            // 終端ノードであればカウント
+            *terminal_nodes += 1;
+            return;
+        }
+
+        tree.insert(
+            node.public_history().clone(),
+            vec![vec![0.0; T::num_private_hands()]; node.num_actions()],
+        );
+
+        for action in node.actions() {
+            Self::build_tree_and_terminal_count(&node.play(action), tree, terminal_nodes);
+        }
+    }
+
     /// ゲーム木を構築する
     // fn build_tree(&mut self, node: &T::Node) {
     //     if node.is_terminal() {
@@ -233,7 +251,7 @@ impl<'a, T: 'a + Game> CFRMinimizer<'a, T> {
     // }
 
     /// 終端ノード数を返す
-    fn get_terminal_nodes(&self)-> i32{
+    pub fn get_terminal_nodes(&self)-> i32{
         self.terminal_nodes
     }
 
