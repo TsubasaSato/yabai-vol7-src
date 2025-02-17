@@ -67,6 +67,9 @@ pub struct CFRMinimizer<'a, T: Game> {
 
     /// Discounted CFR のパラメータ
     gamma_t: f64,
+
+    /// 終端ノード数
+    // terminal_nodes : i32,
 }
 
 impl<'a, T: 'a + Game> CFRMinimizer<'a, T> {
@@ -83,6 +86,7 @@ impl<'a, T: 'a + Game> CFRMinimizer<'a, T> {
             alpha_t: 1.0,
             beta_t: 1.0,
             gamma_t: 1.0,
+            // terminal_nodes: 0
         }
     }
 
@@ -91,10 +95,9 @@ impl<'a, T: 'a + Game> CFRMinimizer<'a, T> {
         // ゲームの初期履歴を取得
         let root = T::root();
 
-        // ゲーム木を構築して累積値を0で初期化
         Self::build_tree(&root, &mut self.cum_regret);
         Self::build_tree(&root, &mut self.cum_strategy);
-
+        
         // 到達確率を1で初期化
         // pmiは偶然手番による寄与が含まれない
         // すなわち、ハンドの組み合わせ確率がこの時点では考慮されない。
@@ -210,6 +213,28 @@ impl<'a, T: 'a + Game> CFRMinimizer<'a, T> {
         for action in node.actions() {
             Self::build_tree(&node.play(action), tree);
         }
+    }
+
+    /// ゲーム木を構築する
+    // fn build_tree(&mut self, node: &T::Node) {
+    //     if node.is_terminal() {
+    //         self.terminal_nodes +=1;
+    //         return;
+    //     }
+
+    //     self.cum_regret.insert(
+    //         node.public_history().clone(),
+    //         vec![vec![0.0; T::num_private_hands()]; node.num_actions()],
+    //     );
+
+    //     for action in node.actions() {
+    //         self.build_tree(&node.play(action));
+    //     }
+    // }
+
+    /// 終端ノード数を返す
+    fn get_terminal_nodes(&self)-> i32{
+        self.terminal_nodes
     }
 
     /// regret-matching アルゴリズム

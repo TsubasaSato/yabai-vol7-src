@@ -17,6 +17,7 @@ fn main() {
     let ev = compute_ev(&push_fold_game, 0, &strategy);
     let exploitability = compute_exploitability(&push_fold_game, &strategy);
 
+    // Publicヒストリーを作成している？
     let pusher = &strategy[&vec![]];
     let caller = &strategy[&vec![1]];
 

@@ -50,6 +50,11 @@ impl Game for PushFoldGame {
             let mut pmi_sum_ex = [0.0; 52];
 
             let mut k = 0;
+
+            // // // デバッグpmiの全要素を表示させてみる
+            // println!("pmi: {:?}",pmi);
+
+            // pmiの各要素が51.0で初期化
             for i in 0..51 {
                 for j in (i + 1)..52 {
                     pmi_sum_ex[i] += pmi[k];
@@ -58,9 +63,15 @@ impl Game for PushFoldGame {
                 }
             }
 
+            // // デバッグpmi_sum_exの全要素を表示させてみる
+            // println!("pmi_sum_ex: {:?}",pmi_sum_ex);
+            // // デバッグpmi_sumの全要素を表示させてみる
+            // println!("pmi_sum: {:?}",pmi_sum);
+            
+
             let payoff = match node.public_history.len() {
-                1 => [-0.5, 0.5][player],
-                _ => [1.0, -1.0][player],
+                1 => [-0.5, 0.5][player],  // 先手がフォールドでゲームが終了
+                _ => [1.0, -1.0][player], // 先手Push、後手フォールドでゲームが終了
             } * num_hands_inv;
 
             let mut k = 0;
@@ -68,13 +79,21 @@ impl Game for PushFoldGame {
             for i in 0..51 {
                 for j in (i + 1)..52 {
                     // 包除原理
+                    // なぜか1326-51-50をしている
                     ret.push(payoff * (pmi_sum - pmi_sum_ex[i] - pmi_sum_ex[j] + pmi[k]));
                     k += 1;
                 }
             }
 
+            // // デバッグretの全要素を表示させてみる
+            // println!("ret: {:?}",ret);
+            // panic!("デバッグ用停止");
             return ret;
         }
+
+        // デバッグ
+        // println!("WIN_FREQ_TABLE: {:?}",*WIN_FREQ_TABLE);
+        // panic!("デバッグ用停止");
 
         // ショーダウン
         let mut k = 0;
